@@ -14,7 +14,7 @@ def multi_probe_lsh(labels, features, K=10):
     lsh_index = falconn.LSHIndex(parms)
     lsh_index.setup(features)
 
-    query = lsh_index.construct_query_object(K)
+    query = lsh_index.construct_query_object(K+10)
     I = list()
     for i in range(len(features)):
         ans = query.find_k_nearest_neighbors(features[i], K)

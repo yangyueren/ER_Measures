@@ -10,11 +10,11 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
 # FileHandler
-# file_handler = logging.FileHandler('./log/output.log')
-# file_handler.setLevel(level=logging.DEBUG)
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# file_handler.setFormatter(formatter)
-# logger.addHandler(file_handler)
+file_handler = logging.FileHandler('./log/output.log')
+file_handler.setLevel(level=logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
 
 
 def read_data(file_name='./data/geolife_top100.txt'):
@@ -31,16 +31,24 @@ def read_data(file_name='./data/geolife_top100.txt'):
     return labels, features
 
 
-def frun():
+def frun(K=10):
     labels, features = read_data('./data/geolife_top100.txt')
     assert len(labels) == len(features), 'driver id not matches features'
-    groups_knn = knn(labels, features, K=10)
-    # pc_knn, pq_knn, rr_knn = evaluate(labels, groups_knn)
-    # print(pc_knn, pq_knn, rr_knn)
-    groups_mpl = multi_probe_lsh(labels, features, K=10)
+    groups_knn = knn(labels, features, K=K)
+    pc_knn, pq_knn, rr_knn = evaluate(labels, groups_knn)
+    logger.info(f',pc_knn,{pc_knn},pq_knn,{pq_knn},rr_knn,{rr_knn}')
+
+    groups_mpl = multi_probe_lsh(labels, features, K=K)
+    pc_mpl, pq_mpl, rr_mpl = evaluate(labels, groups_mpl)
+    logger.info(f',pc_mpl,{pc_mpl},pq_mpl,{pq_mpl},rr_mpl,{rr_mpl}')
 
 
 if __name__ == '__main__':
     np.random.seed(1234)
     random.seed(1234)
-    frun()
+    for i in range(1, 100):
+        try:
+            frun(i*10)
+            print(f'{i*10} is done.')
+        except Exception as e:
+            print(e)

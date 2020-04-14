@@ -11,5 +11,5 @@ def knn(labels, features, K=10):
     index.add(features)  # add vectors to the index
 
     D, I = index.search(features, K)
-    print(I[0])
+
     return I

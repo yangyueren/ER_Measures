@@ -39,6 +39,29 @@ def cal_DB(labels, group):
                 ans.add((m, n))
     return ans
 
+
+def cal_DB_2(labels, group, db):
+    """
+    return the pairs set that are the same driver id
+    :param labels:
+    :param group:
+    :return: set : (traj1, traj2)  traj1 < traj2
+    """
+
+    for i in range(len(group)):
+        for j in range(i):
+            if labels[i] == labels[j]:
+                assert j < i, 'pair error'
+                a = group[i]
+                b = group[j]
+                m = min(a,b)
+                n = max(a,b)
+                assert m < n, 'pair error'
+                if m not in db:
+                    db[m] = set()
+                db[m].add(n)
+
+
 def pc(labels, groups):
     """
     Pairs Completeness (PC) assesses the portion of the duplicate entities
@@ -56,12 +79,17 @@ def pc(labels, groups):
 
 
     db_set = set()
+    db_dict = dict()
     for group in groups:
         label = labels[group]
-        cur_set = cal_DB(label, group)
-        db_set = db_set | cur_set
-    DB = len(db_set)
-
+        cal_DB_2(label, group, db_dict)
+        # cur_set = cal_DB(label, group)
+        # db_set = db_set | cur_set
+    # DB = len(db_set)
+    DB = 0
+    for k in db_dict.keys():
+        DB += len(db_dict[k])
+        
     return DB / DE
 
 
@@ -79,14 +107,19 @@ def pq(labels, groups):
     B = 0 #不需要去重
 
     db_set = set()
+    db_dict = dict()
     for group in groups:
         length = len(group)
         B += length*(length-1)/2
 
         label = labels[group]
-        cur_set = cal_DB(label, group)
-        db_set = db_set | cur_set
-    DB = len(db_set)
+        cal_DB_2(label, group, db_dict)
+        # cur_set = cal_DB(label, group)
+        # db_set = db_set | cur_set
+    # DB = len(db_set)
+    DB = 0
+    for k in db_dict.keys():
+        DB += len(db_dict[k])
     return DB / B
 
 def rr(labels, groups):

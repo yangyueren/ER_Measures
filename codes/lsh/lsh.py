@@ -6,7 +6,7 @@ import math
 from .lsh_ht import LSHHashTble
 
 class LSH:
-    def __init__(self, num_ht, num_hf, dim):
+    def __init__(self, num_ht, num_hf, dim, w=5):
         """
         initialize the parameters
         :param num_ht: number of hash tables
@@ -18,7 +18,7 @@ class LSH:
         self.dim = dim
         self.hts = list()
         for i in range(self.num_ht):
-            ht = LSHHashTble(self.num_hf, self.dim)
+            ht = LSHHashTble(self.num_hf, self.dim, w)
             self.hts.append(ht)
 
     def add_data(self, ids, features):

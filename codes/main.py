@@ -14,7 +14,8 @@ logger.setLevel(level=logging.DEBUG)
 # FileHandler
 file_handler = logging.FileHandler('./log/output.log')
 file_handler.setLevel(level=logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(message)s')
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
@@ -36,18 +37,15 @@ def read_data(file_name='./data/geolife_top100.txt'):
 def frun(K=10):
     labels, features = read_data('./data/geolife_top100.txt')
     assert len(labels) == len(features), 'driver id not matches features'
-    # groups_knn = knn(labels, features, K=K)
-    # pc_knn, pq_knn, rr_knn = evaluate(labels, groups_knn)
-    # logger.info(f',pc_knn,{pc_knn},pq_knn,{pq_knn},rr_knn,{rr_knn}')
+    groups_knn = knn(labels, features, K=K)
+    pc_knn, pq_knn, rr_knn = evaluate(labels, groups_knn)
+    logger.info(f',pc_knn,{pc_knn},pq_knn,{pq_knn},rr_knn,{rr_knn}')
 
-    # groups_mpl = multi_probe_lsh(labels, features, K=K)
-    # pc_mpl, pq_mpl, rr_mpl = evaluate(labels, groups_mpl)
-    # logger.info(f',pc_mpl,{pc_mpl},pq_mpl,{pq_mpl},rr_mpl,{rr_mpl}')
-
-    lsh_index = LSH()
-    groups_lsh = multi_probe_lsh(labels, features, K=K)
-    pc_mpl, pq_mpl, rr_mpl = evaluate(labels, groups_lsh)
+    groups_mpl = multi_probe_lsh(labels, features, K=K)
+    pc_mpl, pq_mpl, rr_mpl = evaluate(labels, groups_mpl)
     logger.info(f',pc_mpl,{pc_mpl},pq_mpl,{pq_mpl},rr_mpl,{rr_mpl}')
+
+
 
 
 def grun(num_ht = 4, num_hf = 8):
@@ -59,13 +57,16 @@ def grun(num_ht = 4, num_hf = 8):
     lsh_index.add_data(ids, features)
     groups_lsh = lsh_index.get_blocks()
     pc_mpl, pq_mpl, rr_mpl = evaluate(labels, groups_lsh)
-    logger.info(f',pc_lsh,{pc_mpl},pq_lsh,{pq_mpl},rr_lsh,{rr_mpl}')
+    logger.info(f'{num_ht:2d} hash tables, {num_hf:2d} hash functions  ,pc_lsh,{pc_mpl},pq_lsh,{pq_mpl},rr_lsh,{rr_mpl}')
 
 
 if __name__ == '__main__':
     np.random.seed(1234)
     random.seed(1234)
-    grun()
+    for i in range(1,20):
+        for j in range(1,20):
+            grun(i, j)
+            print(f'{i} hash tables {j} hash funcs is done.')
     # for i in range(1, 2):
     #     try:
     #         frun(i*10)

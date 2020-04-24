@@ -113,33 +113,25 @@ def pq(labels, groups, DB):
     # for k in db_dict.keys():
     #     DB += len(db_dict[k])
 
-    return DB / B
+    return DB / B, B
 
-def rr(labels, groups, DB):
+def rr(labels, groups, B):
     """
     Reduction Ratio (RR) estimates the portion of comparisons
     that are avoided in B with respect to the naive, brute-force approach
     :param ids: np.array, (num,)
     :param labels: np.array (num,)
     :param groups: list(list), one list (ids) represent one group
-    :return: RR(B, E)=1-||B||/||E|| , replace B with DB
+    :return: RR(B, E)=1-||B||/||E||
     """
     # B = 0
     # for group in groups:
     #     length = len(group)
     #     B += length * (length - 1) / 2
 
-    # db_dict = dict()
-    # for group in groups:
-    #     label = labels[group]
-    #     cal_DB_2(label, group, db_dict)
-    # DB = 0
-    # for k in db_dict.keys():
-    #     DB += len(db_dict[k])
-
     num = len(labels)
     E = num * (num-1) / 2
-    return 1 - DB/E
+    return 1 - B/E
 
 def evaluate(labels, groups):
     """
@@ -150,6 +142,6 @@ def evaluate(labels, groups):
     """
     DB = cal_DB(labels, groups)
     _pc = pc(labels, groups, DB)
-    _pq = pq(labels, groups, DB)
-    _rr = rr(labels, groups, DB)
-    return _pc, _pq, _rr
+    _pq, B = pq(labels, groups, DB)
+    _rr = rr(labels, groups, B)
+    return _pc, _pq, _rr, DB, B

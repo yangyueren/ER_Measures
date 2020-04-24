@@ -5,7 +5,7 @@ import random
 import math
 
 class LSHHashTble:
-    def __init__(self, num_hash_func, dim, w=5):
+    def __init__(self, num_hash_func, dim):
         """
         initialize the hash funcs in the LSH table
         :param num_hash_func: int
@@ -15,7 +15,7 @@ class LSHHashTble:
         self.dim = dim
 
         self.a = np.random.normal(size=(self.num_hash_func, self.dim))
-        self.w = w
+        # self.w = w
         self.b = np.random.random(self.num_hash_func) * self.w
         self.buckets = dict()
 
@@ -28,8 +28,7 @@ class LSHHashTble:
         """
         assert features.shape[1] == self.dim, 'dim error'
         v = features.dot(self.a.T) # N * num_hash_func
-        v += self.b
-        v /= self.w
+        v = np.where(v>0, 1, -1)
         v = np.floor(v).astype(np.int)
         for idx, line in zip(ids, v):
             t = tuple(line)

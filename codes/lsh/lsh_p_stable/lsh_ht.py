@@ -5,7 +5,7 @@ import random
 import math
 
 class LSHHashTble:
-    def __init__(self, num_hash_func, dim, w=5):
+    def __init__(self, num_hash_func, dim, w=30):
         """
         initialize the hash funcs in the LSH table
         :param num_hash_func: int

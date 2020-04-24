@@ -6,7 +6,9 @@ import logging
 from knn import knn
 from multi_probe_lsh import multi_probe_lsh
 from evaluate import evaluate
-from lsh import LSH
+import lsh_p_stable
+import lsh_random_hyperplane
+import lsh_simhash
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
@@ -35,6 +37,11 @@ def read_data(file_name='./data/geolife_top100.txt'):
 
 
 def frun(K=10):
+    """knn blocking
+    
+    Args:
+        K (int, optional): nearest neighbors. Defaults to 10.
+    """
     labels, features = read_data('./data/geolife_top100.txt')
     assert len(labels) == len(features), 'driver id not matches features'
     groups_knn = knn(labels, features, K=K)
@@ -46,26 +53,34 @@ def frun(K=10):
     logger.info(f',pc_mpl,{pc_mpl},pq_mpl,{pq_mpl},rr_mpl,{rr_mpl}')
 
 
-def grun(num_ht = 4, num_hf = 8, w=5):
+def p_stable_run(num_ht = 4, num_hf = 8, w=30):
+    """lsh p stable
+    
+    Args:
+        num_ht (int, optional): hash tables. Defaults to 4.
+        num_hf (int, optional): hash functions for each hash table. Defaults to 8.
+        w (int, optional): hyperparameter. Defaults to 30.
+    """
     labels, features = read_data('./data/geolife_top100.txt')
     ids = list(range(len(labels)))
     assert len(labels) == len(features), 'driver id not matches features'
 
-    lsh_index = LSH(num_ht, num_hf, features.shape[1], w)
+    lsh_index = lsh_p_stable.LSH(num_ht, num_hf, features.shape[1], w)
     lsh_index.add_data(ids, features)
     groups_lsh = lsh_index.get_blocks()
-    pc_lsh, pq_lsh, rr_lsh = evaluate(labels, groups_lsh)
-    logger.info(f'w {w:2d}, {num_ht:2d} hash tables, {num_hf:2d} hash functions, pc_lsh,{pc_lsh:.6f}, pq_lsh,{pq_lsh:.6f}, rr_lsh,{rr_lsh:.6f}')
+    pc_lsh, pq_lsh, rr_lsh, DB, B = evaluate(labels, groups_lsh)
+
+    logger.info(f'p_stable - w {w:2d}, {num_ht:2d} hash tables, {num_hf:2d} hash functions, pc {pc_lsh:.6f}, pq {pq_lsh:.6f}, rr {rr_lsh:.6f}, DB {int(DB)}, B {int(B)}')
 
 
 if __name__ == '__main__':
     np.random.seed(1234)
     random.seed(1234)
-    for w in range(1, 10):
-        for i in range(1,20):
-            for j in range(1,20):
+    for w in range(2, 5):
+        for i in range(1,11):
+            for j in range(1,11):
                 try:
-                    grun(i, j, w*5+20)
+                    p_stable_run(i, j, w*5+20)
                     print(f'{w} {i} hash tables {j} hash funcs is done.')
                 except Exception as e:
                     print(e)

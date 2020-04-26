@@ -30,7 +30,7 @@ def cal_DB(labels, groups):
     db_dict = dict()
     for group in groups:
         label = labels[group]
-        cal_DB_2(label, group, db_dict)
+        cal_DB_2(label, group, db_dict) # db_dict: 1:set(2,3,4), record all found pairs
     DB = 0
     for k in db_dict.keys():
         DB += len(db_dict[k])
@@ -92,7 +92,6 @@ def pq(labels, groups, DB):
     as it estimates the portion of non-redundant comparisons
     that involve matching entities.
 
-    :param ids: np.array, (num,)
     :param labels: np.array (num,)
     :param groups: list(list), one list (ids) represent one group
     :return: PQ(B)=|D(B)|/||B||.
@@ -136,10 +135,12 @@ def rr(labels, groups, B):
 def evaluate(labels, groups):
     """
     return the three result
-    :param labels:
-    :param groups:
+    :param labels: list, the driver of the ids in the groups
+    :param groups: list(list)
     :return:
     """
+    labels = np.array(labels)
+    
     DB = cal_DB(labels, groups)
     _pc = pc(labels, groups, DB)
     _pq, B = pq(labels, groups, DB)

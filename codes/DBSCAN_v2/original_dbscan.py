@@ -7,13 +7,15 @@ import sys
 sys.path.append(".")
 import os
 from pathlib import Path
+from multiprocessing import Process, Lock
+from sklearn.cluster import DBSCAN
 from codes.evaluate import evaluate
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
 # FileHandler
-file_handler = logging.FileHandler('./log/dbscan_output.log')
+file_handler = logging.FileHandler('./log/dbscan_original_output.log')
 file_handler.setLevel(level=logging.DEBUG)
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 formatter = logging.Formatter('%(asctime)s - %(message)s')
@@ -36,7 +38,7 @@ def read_data(file_name='./data/geolife_top100.txt'):
 
 
 
-def calculate_score(result_path, data_path='./data/geolife_top100.txt'):
+def calculate_score(eps, minPts, lock, data_path='./data/geolife_top100.txt'):
     """evaluate the result
 
     Args:
@@ -47,25 +49,30 @@ def calculate_score(result_path, data_path='./data/geolife_top100.txt'):
     labels, features = read_data(data_path)
     ids = list(range(len(labels)))
     assert len(labels) == len(features), 'driver id not matches features'
+    clustering = DBSCAN(eps=eps, min_samples=minPts).fit(features)
+    cluster = clustering.labels_
+    keys = np.unique(cluster)
     groups = list()
-    with open(result_path, 'r', encoding='utf-8') as f:
-        num = 0
-        for num,line in enumerate(f.readlines()):
-            if num == 0:
-                continue
-            if num % 2 == 1:
-                continue
-            line = line.replace('\n', '')
-            line = line.split(' ')
-            # minu 1 because id plus 1.
-            new_line = [int(int(i)-1) for i in line if i.isnumeric()]
-            groups.append(new_line)
+    num = list()
+    for key in keys:
+        index = np.where(cluster == key)[0]
+        group = index.tolist()
+        groups.append(group)
+        num.append(len(group))
+    # import pdb; pdb.set_trace()
+    
+    
     print('begin evaluate:')
     pc, pq, rr, DB, B = evaluate(labels, groups)
-
-    logger.info(f'{str(result_path).split("/")[-1]}, pc {pc:.6f}, pq {pq:.6f}, rr {rr:.6f}, DB {int(DB)}, B {int(B)}')
-
-    print(pc, pq, rr, DB, B)
+    try:
+        lock.acquire()
+        logger.info(f'eps {eps:.5f}, minPts {minPts:3d}, pc {pc:.6f}, pq {pq:.6f}, rr {rr:.6f}, DB {int(DB)}, B {int(B)}')
+        logger.info(f'{str(num)}')
+    except Exception as e:
+        print(e)
+    finally:
+        lock.release()
+        print(pc, pq, rr, DB, B)
 
 
 if __name__ == '__main__':
@@ -73,7 +80,29 @@ if __name__ == '__main__':
     random.seed(1234)
     # generate_data()
     root_path = Path(os.getcwd())
-    data_path = root_path / 'data' / 'dbscan_data'
-    for file in os.listdir(data_path):
-        print(file)
-        calculate_score(data_path / file)
+    
+    lock = Lock()
+    p_obj = []
+    try:
+        for i in range(1, 6):
+            for j in range(1, 10):
+                eps = pow(10, i) * 0.1
+                minPts = j * 5
+                # calculate_score(eps, minPts)
+                p = Process(target=calculate_score, args=(eps, minPts, lock))
+                p_obj.append(p)
+        print('Waiting for all subprocesses done...')
+
+        for i in p_obj:
+            i.start()
+        for i in p_obj:
+            i.join()
+        print('All subprocesses done.')
+    except Exception as e:
+        print(e)
+    
+
+
+
+
+

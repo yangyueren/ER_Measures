@@ -16,16 +16,6 @@ from codes.evaluate import evaluate
 from point import Point
 
 # geo_range = {'lat_min': 40.953673, 'lat_max': 41.307945, 'lon_min': -8.735152, 'lon_max': -8.156309}
-logger = logging.getLogger(__name__)
-logger.setLevel(level=logging.DEBUG)
-
-# FileHandler
-file_handler = logging.FileHandler('./log/split_cell_output.log')
-file_handler.setLevel(level=logging.DEBUG)
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-formatter = logging.Formatter('%(asctime)s - %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 class Cell:
     def __init__(self, trips, cell_num=1000):
@@ -37,8 +27,13 @@ class Cell:
         # self.min_y # latitude
 
         # in the format of driver: Point(1,2) : num
+        # self.driver[taxi][point] = frequency
         self.driver = dict()
+        # self.point2freq[point] = freq
+        self.point2freq = dict()
+        # self.point2traj[point].add(idxx)
         self.point2traj = dict()
+        # self.labels[id] is the trajectoyr id 's driver.
         self.labels = list()
         self.cell_num_per_side = cell_num
         self.min_x, self.min_y, self.max_x, self.max_y = -8.735152, 40.953673, -8.156309, 41.307945
@@ -105,9 +100,6 @@ class Cell:
             if sum(trip[:, 1] < self.min_y) > 0 or sum(trip[:, 1] > self.max_y) > 0:
                 skip += 1
                 continue
-            # if skip % 10 == 0:
-            #     skip += 1
-            #     print(skip, total)
             
             x = np.floor((trip[:, 0] - self.min_x) / self.gap_x)
             x = x.astype(np.int)
@@ -122,15 +114,24 @@ class Cell:
                 if point not in self.point2traj:
                     self.point2traj[point] = set()
 
+                if point not in self.point2freq:
+                    self.point2freq[point] = 0
+
                 if point not in self.driver[taxi]:
                     self.driver[taxi][point] = 0
+
                 # record the visited number of the point for taxi_id.
                 self.driver[taxi][point] += 1
                 # record the point which trajectory visit.
                 self.point2traj[point].add(idxx)
+                # record the point visiting frequency.
+                self.point2freq[point] += 1
         # assert len(self.labels) == len(trips.keys())
         
     def __str__(self):
+        f = f'minx, miny, maxx, maxy, gapx, gapy {self.min_x}, {self.min_y}, {self.max_x}, {self.max_y}, {self.gap_x}, {self.gap_y}'
+        return f
+    def __repr__(self):
         f = f'minx, miny, maxx, maxy, gapx, gapy {self.min_x}, {self.min_y}, {self.max_x}, {self.max_y}, {self.gap_x}, {self.gap_y}'
         return f
 
@@ -149,9 +150,10 @@ class Cell:
             if key not in ans:
                 ans[key] = list()
             pairs = drivers[key] # pairs is dict: Point:frequency
-            res = sorted(pairs.items(), key=lambda x: x[1], reverse=True)
+            res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
             ans[key] = res[:k]
         return ans
+    
 
     def create_groups(self, topk):
         """create groups in the format [[1,2,3], [3,4,5]], list(list)
@@ -177,66 +179,6 @@ class Cell:
         # import pdb; pdb.set_trace()
         return labels, groups
 
-
-def one_process(cell_num, k, lock):
-    """process one line
-
-    Args:
-        num_cell ([type]): [description]
-        k ([type]): [description]
-        lock ([type]): [description]
-
-    Returns:
-        [type]: [description]
-    """
-    trajectory_path = root_path / 'data' / 'porto2top100_train.h5'
-    embedding_path = root_path / 'data' / 'trj_porto2_top100_train180.h5'
-    ft = h5py.File(trajectory_path, 'r')
-
-    cell = Cell(ft['trips'], cell_num)
-    print(f'begin add trip {cell_num}, {k}')
-    t1 = time.time()
-    cell.add_trip(ft['trips'], ft['taxi_ids'])
-
-    # topk : (dict): driver: list([Point, frequency]), list has only k numbers
-    topk = cell.top_k(k=k)
-
-    labels, groups = cell.create_groups(topk)
-    
-    pc, pq, rr, DB, B = evaluate(labels, groups)
-    try:
-        lock.acquire()
-        logger.info(f'cells,{cell_num*cell_num}, top-k, {k}, pc {pc:.6f}, pq {pq:.6f}, rr {rr:.6f}, DB {int(DB)}, B {int(B)}')
-        print(pc, pq, rr, DB, B)
-    except Exception as e:
-        print(e)
-    finally:
-        lock.release()
-        ft.close()
-
-
-
-if __name__ == '__main__':
-    root_path = Path(os.getcwd())
-    os.chdir(os.path.dirname(os.getcwd()))
-    print(os.getcwd())
-    
-
-    lock = Lock()
-    p_obj = []
-
-    for i in range(1, 5): #num cell
-        for j in range(1, 10): # top-k
-            p = Process(target=one_process, args=(i*50, j*5, lock))
-            p_obj.append(p)
-        print('Waiting for all subprocesses done...')
-
-    for i in p_obj:
-        i.start()
-    for i in p_obj:
-        i.join()
-    print('All subprocesses done.')
-    
 
 
 

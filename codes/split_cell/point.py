@@ -14,4 +14,4 @@ class Point:
         else:
             return False
     def __hash__(self):
-        return hash(str(self.x) + str(self.y))
+        return hash(str(self.x) + '_' + str(self.y))

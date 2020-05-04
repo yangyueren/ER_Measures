@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import logging
 from codes.evaluate import evaluate
+sys.path.append('./codes/split_cell/')
 from point import Point
 
 # geo_range = {'lat_min': 40.953673, 'lat_max': 41.307945, 'lon_min': -8.735152, 'lon_max': -8.156309}
@@ -33,6 +34,8 @@ class Cell:
         self.point2freq = dict()
         # self.point2traj[point].add(idxx)
         self.point2traj = dict()
+        
+
         # self.labels[id] is the trajectoyr id 's driver.
         self.labels = list()
         self.cell_num_per_side = cell_num
@@ -150,10 +153,45 @@ class Cell:
             if key not in ans:
                 ans[key] = list()
             pairs = drivers[key] # pairs is dict: Point:frequency
-            res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
+            # res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
+            res = sorted(pairs.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+
             ans[key] = res[:k]
         return ans
     
+
+    def neighbor_ratio(self, topk):
+        """calculate the neighbor ratio for each driver
+
+        Args:
+            topk (dict): driver: list([Point, frequency])
+        
+        Returns:
+            neighbor_ratio (list): len(driver)+1, the 1st is overall ratio.
+        """
+        def is_neighbor(point1, point2):
+            if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
+                return True
+            else:
+                return False
+
+        ratio_list = list()
+        for driver in topk.keys():
+            buckets = topk[driver]
+            neighbor = set()
+            for i in range(len(buckets)-1):
+                for j in range(i+1, len(buckets)):
+                    if is_neighbor(buckets[i][0], buckets[j][0]):
+                        neighbor.add(buckets[i][0])
+                        neighbor.add(buckets[j][0])
+            cur_ratio = len(neighbor) / len(buckets)
+            ratio_list.append(cur_ratio)
+        average_ratio = sum(ratio_list) / len(ratio_list)
+        ratio_list.insert(0, average_ratio)
+        return ratio_list
+                        
+
+
 
     def create_groups(self, topk):
         """create groups in the format [[1,2,3], [3,4,5]], list(list)
@@ -171,36 +209,34 @@ class Cell:
         for driver in topk.keys():
             points = topk[driver]
             # import pdb; pdb.set_trace()
+            cur_group = list()
             for pair in points:
                 if pair[0] not in visited:
                     visited.add(pair[0])
-                    cur_group = list(self.point2traj[pair[0]])
-                    groups.append(cur_group)
+                    tmp = list(self.point2traj[pair[0]])
+                    cur_group.extend(tmp)
+            groups.append(list(set(cur_group)))
         # import pdb; pdb.set_trace()
         return labels, groups
 
 
 
+    # def non_repeated_ratio(self, frequency):
+    #     """analyze the non repeated ratio of top k cells for each driver
 
-
-
-
-# def non_repeated_ratio(frequency):
-#     """analyze the non repeated ratio of top k cells for each driver
-
-#     Args:
-#         frequency (dict): driver: list, list is [(Point, fre)]
-#     Return:
-#         ratio (dict): non repeated ratio for each driver
-#     """
-#     ratio = dict()
-#     for key in frequency:
-#         gt_set = set([i[0] for i in frequency[key]])
-#         junk_set = set()
-#         for jk in frequency:
-#             if jk != key:
-#                 cur_set = set([i[0] for i in frequency[jk]])
-#                 junk_set |= cur_set
-#         cur_ratio = len(gt_set.intersection(junk_set)) / len(gt_set)
-#         ratio[key] = cur_ratio
-#     return ratio
+    #     Args:
+    #         frequency (dict): driver: list, list is [(Point, fre)]
+    #     Return:
+    #         ratio (dict): non repeated ratio for each driver
+    #     """
+    #     ratio = dict()
+    #     for key in frequency:
+    #         gt_set = set([i[0] for i in frequency[key]])
+    #         junk_set = set()
+    #         for jk in frequency:
+    #             if jk != key:
+    #                 cur_set = set([i[0] for i in frequency[jk]])
+    #                 junk_set |= cur_set
+    #         cur_ratio = len(gt_set.intersection(junk_set)) / len(gt_set)
+    #         ratio[key] = cur_ratio
+    #     return ratio

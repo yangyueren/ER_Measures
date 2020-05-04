@@ -1,2 +1,1 @@
-from .point import Point
-from .cell import Cell
+__all__ = ['point','cell'] #package1下有file1.py,file2.py

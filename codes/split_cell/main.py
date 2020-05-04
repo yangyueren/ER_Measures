@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
 # FileHandler
-file_handler = logging.FileHandler('./log/no_duplicate_split_cell_output.log')
+file_handler = logging.FileHandler('./log/debug_no_duplicate_split_cell_output.log')
 file_handler.setLevel(level=logging.DEBUG)
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 formatter = logging.Formatter('%(asctime)s - %(message)s')
@@ -52,6 +52,11 @@ def one_process(cell_num, k, lock):
 
     # topk : (dict): driver: list([Point, frequency]), list has only k numbers
     topk = cell.top_k(k=k)
+    labels = cell.labels
+    point2traj = cell.point2traj
+
+    # neighbor_ratio = cell.neighbor_ratio(topk)
+    # print(neighbor_ratio)
 
     # groups: list(list), every element is an trajectory id.
     # labels[id] represents the driver of trajectory id.
@@ -62,6 +67,7 @@ def one_process(cell_num, k, lock):
     pc, pq, rr, DB, B = evaluate(labels, groups)
     try:
         lock.acquire()
+        # logger.info(f'{str(neighbor_ratio)}')
         logger.info(f'cells,{cell_num*cell_num}, top-k, {k}, pc {pc:.6f}, pq {pq:.6f}, rr {rr:.6f}, DB {int(DB)}, B {int(B)}')
         print(pc, pq, rr, DB, B)
     except Exception as e:

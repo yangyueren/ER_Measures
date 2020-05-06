@@ -139,10 +139,12 @@ def evaluate(labels, groups):
     :param groups: list(list)
     :return:
     """
+    if len(groups) == 0:
+        return 0, 0, 0, 0, 0
     labels = np.array(labels)
-    
     DB = cal_DB(labels, groups)
     _pc = pc(labels, groups, DB)
     _pq, B = pq(labels, groups, DB)
     _rr = rr(labels, groups, B)
+    
     return _pc, _pq, _rr, DB, B

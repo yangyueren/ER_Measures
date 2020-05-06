@@ -138,6 +138,7 @@ class Cell:
         f = f'minx, miny, maxx, maxy, gapx, gapy {self.min_x}, {self.min_y}, {self.max_x}, {self.max_y}, {self.gap_x}, {self.gap_y}'
         return f
 
+
     def top_k(self, k=20):
         """find the top k of each driver
 
@@ -146,78 +147,135 @@ class Cell:
         Returns:
             ans (dict): driver: list((Point, frequency))
         """
-        ans = dict()
-        # drivers (dict): drivers[0][Point(1,2)] = frequency
-        drivers = self.driver
-        for key in drivers.keys():
-            if key not in ans:
-                ans[key] = list()
-            pairs = drivers[key] # pairs is dict: Point:frequency
-            # res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
-            res = sorted(pairs.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-
-            ans[key] = res[:k]
+        ans = list()
+        # import pdb; pdb.set_trace()
+        res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* np.log((1.0 / (len(self.point2traj[x[0]]) + 1))), reverse=True)
+        ans = res[:k]
+        
         return ans
     
-
-    def neighbor_ratio(self, topk):
-        """calculate the neighbor ratio for each driver
-
-        Args:
-            topk (dict): driver: list([Point, frequency])
-        
-        Returns:
-            neighbor_ratio (list): len(driver)+1, the 1st is overall ratio.
-        """
-        def is_neighbor(point1, point2):
-            if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
-                return True
-            else:
-                return False
-
-        ratio_list = list()
-        for driver in topk.keys():
-            buckets = topk[driver]
-            neighbor = set()
-            for i in range(len(buckets)-1):
-                for j in range(i+1, len(buckets)):
-                    if is_neighbor(buckets[i][0], buckets[j][0]):
-                        neighbor.add(buckets[i][0])
-                        neighbor.add(buckets[j][0])
-            cur_ratio = len(neighbor) / len(buckets)
-            ratio_list.append(cur_ratio)
-        average_ratio = sum(ratio_list) / len(ratio_list)
-        ratio_list.insert(0, average_ratio)
-        return ratio_list
-                        
-
-
 
     def create_groups(self, topk):
         """create groups in the format [[1,2,3], [3,4,5]], list(list)
 
         Args:
-            topk (dict): driver: list([Point, frequency])
+            topk (list): list([Point, frequency])
 
         Returns:
             labels: list()
             groups: list(list)
         """
+        def is_neighbor(topk):
+            new_topk = set()
+            for i in range(len(topk)):
+                flag = True
+                for pair in new_topk:
+                    point1 = topk[i][0]
+                    point2 = pair[0]
+                    if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
+                        flag = False
+                        break
+                if flag:
+                    new_topk.add(topk[i])
+            return new_topk
+
         labels = self.labels
         groups = list()
         visited = set()
-        for driver in topk.keys():
-            points = topk[driver]
-            # import pdb; pdb.set_trace()
-            cur_group = list()
-            for pair in points:
-                if pair[0] not in visited:
-                    visited.add(pair[0])
-                    tmp = list(self.point2traj[pair[0]])
-                    cur_group.extend(tmp)
-            groups.append(list(set(cur_group)))
+        topk = is_neighbor(topk)
+        for pair in topk:
+            point = pair[0]
+            if point not in visited:
+                visited.add(point)
+                tmp = list(self.point2traj[point])
+            if len(tmp) > 2:
+                groups.append(tmp)
         # import pdb; pdb.set_trace()
+        # print(groups)
         return labels, groups
+
+
+    # def top_k(self, k=20):
+    #     """find the top k of each driver
+
+    #     Args:
+    #         k (int): knn
+    #     Returns:
+    #         ans (dict): driver: list((Point, frequency))
+    #     """
+    #     ans = dict()
+    #     # drivers (dict): drivers[0][Point(1,2)] = frequency
+    #     drivers = self.driver
+    #     for key in drivers.keys():
+    #         if key not in ans:
+    #             ans[key] = list()
+    #         pairs = drivers[key] # pairs is dict: Point:frequency
+    #         # res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
+    #         res = sorted(pairs.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+
+    #         ans[key] = res[:k]
+    #     return ans
+    
+
+    # def neighbor_ratio(self, topk):
+    #     """calculate the neighbor ratio for each driver
+
+    #     Args:
+    #         topk (dict): driver: list([Point, frequency])
+        
+    #     Returns:
+    #         neighbor_ratio (list): len(driver)+1, the 1st is overall ratio.
+    #     """
+    #     def is_neighbor(point1, point2):
+    #         if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
+    #             return True
+    #         else:
+    #             return False
+
+    #     ratio_list = list()
+    #     for driver in topk.keys():
+    #         buckets = topk[driver]
+    #         neighbor = set()
+    #         for i in range(len(buckets)-1):
+    #             for j in range(i+1, len(buckets)):
+    #                 if is_neighbor(buckets[i][0], buckets[j][0]):
+    #                     neighbor.add(buckets[i][0])
+    #                     neighbor.add(buckets[j][0])
+    #         cur_ratio = len(neighbor) / len(buckets)
+    #         ratio_list.append(cur_ratio)
+    #     average_ratio = sum(ratio_list) / len(ratio_list)
+    #     ratio_list.insert(0, average_ratio)
+    #     return ratio_list
+                        
+
+
+
+    # def create_groups(self, topk):
+    #     """create groups in the format [[1,2,3], [3,4,5]], list(list)
+
+    #     Args:
+    #         topk (dict): driver: list([Point, frequency])
+
+    #     Returns:
+    #         labels: list()
+    #         groups: list(list)
+    #     """
+    #     labels = self.labels
+    #     groups = list()
+    #     visited = set()
+    #     for driver in topk.keys():
+    #         points = topk[driver]
+    #         # import pdb; pdb.set_trace()
+    #         cur_group = list()
+    #         for pair in points:
+    #             if pair[0] not in visited:
+    #                 visited.add(pair[0])
+    #                 tmp = list(self.point2traj[pair[0]])
+    #                 cur_group.extend(tmp)
+    #         groups.append(list(set(cur_group)))
+    #     # import pdb; pdb.set_trace()
+    #     return labels, groups
 
 
 

@@ -147,11 +147,29 @@ class Cell:
         Returns:
             ans (dict): driver: list((Point, frequency))
         """
+        def is_neighbor(topk, now):
+            for ii in range(len(topk)):
+                point1 = topk[ii][0]
+                point2 = now[0]
+                if abs(point1.x - point2.x) == 0 and abs(point1.y - point2.y) <=1:
+                    return True
+                if abs(point1.x - point2.x) == 1 and abs(point1.y - point2.y) ==0:
+                    return True
+            return False
+
         ans = list()
         # import pdb; pdb.set_trace()
-        res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* np.log((1.0 / (len(self.point2traj[x[0]]) + 1))), reverse=True)
-        ans = res[:k]
+        # res = sorted(self.point2freq.items(), key=lambda x: np.log(x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+        res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]])*len(self.point2traj[x[0]]) + 1)), reverse=True)
+        i = 0
+        j = 0
+        while i<k and j < len(res):
+            tmp = res[j]
+            j += 1
+            if not is_neighbor(ans, tmp):
+                ans.append(tmp)
+                i += 1
         
         return ans
     
@@ -166,24 +184,24 @@ class Cell:
             labels: list()
             groups: list(list)
         """
-        def is_neighbor(topk):
-            new_topk = set()
-            for i in range(len(topk)):
-                flag = True
-                for pair in new_topk:
-                    point1 = topk[i][0]
-                    point2 = pair[0]
-                    if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
-                        flag = False
-                        break
-                if flag:
-                    new_topk.add(topk[i])
-            return new_topk
+        # def is_neighbor(topk):
+        #     new_topk = set()
+        #     for i in range(len(topk)):
+        #         flag = True
+        #         for pair in new_topk:
+        #             point1 = topk[i][0]
+        #             point2 = pair[0]
+        #             if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
+        #                 flag = False
+        #                 break
+        #         if flag:
+        #             new_topk.add(topk[i])
+        #     return new_topk
 
         labels = self.labels
         groups = list()
         visited = set()
-        topk = is_neighbor(topk)
+        # topk = is_neighbor(topk)
         for pair in topk:
             point = pair[0]
             if point not in visited:

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
 # FileHandler
-file_handler = logging.FileHandler('./log/debug_no_driver_no_duplicate_split_cell_output.log')
+file_handler = logging.FileHandler('./log/debug_topk_3w2multiply_no_duplicate_split_cell_output.log')
 file_handler.setLevel(level=logging.DEBUG)
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 formatter = logging.Formatter('%(asctime)s - %(message)s')
@@ -86,21 +86,8 @@ if __name__ == '__main__':
     p_obj = []
     # one_process(50,5, lock)
     for i in range(1, 5): #num cell
-        for j in range(1, 10): # top-k
-            p = Process(target=one_process, args=(i*20, j*30, lock))
-            p_obj.append(p)
-        print('Waiting for all subprocesses done...')
-
-    for i in p_obj:
-        i.start()
-    for i in p_obj:
-        i.join()
-
-    p_obj = []
-    # one_process(50,50, lock)
-    for i in range(1, 10): #num cell
-        for j in range(1, 10): # top-k
-            p = Process(target=one_process, args=(i*10, j*5, lock))
+        for j in range(1, 20): # top-k
+            p = Process(target=one_process, args=(i*10, j*10, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -113,7 +100,20 @@ if __name__ == '__main__':
     # one_process(50,50, lock)
     for i in range(1, 10): #num cell
         for j in range(1, 20): # top-k
-            p = Process(target=one_process, args=(i*20, j*2, lock))
+            p = Process(target=one_process, args=(i*10, j*10, lock))
+            p_obj.append(p)
+        print('Waiting for all subprocesses done...')
+
+    for i in p_obj:
+        i.start()
+    for i in p_obj:
+        i.join()
+
+    p_obj = []
+    # one_process(50,50, lock)
+    for i in range(1, 10): #num cell
+        for j in range(1, 20): # top-k
+            p = Process(target=one_process, args=(i*15, j*10+20, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # one_process(50,50, lock)
     for i in range(1, 5): #num cell
         for j in range(20, 60): # top-k
-            p = Process(target=one_process, args=(i*50, j*2, lock))
+            p = Process(target=one_process, args=(i*10, j*3, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -137,9 +137,9 @@ if __name__ == '__main__':
 
     p_obj = []
     # one_process(50,50, lock)
-    for i in range(1, 5): #num cell
+    for i in range(1, 10): #num cell
         for j in range(10, 60): # top-k
-            p = Process(target=one_process, args=(i*20, j*10, lock))
+            p = Process(target=one_process, args=(i*20, j*20, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 

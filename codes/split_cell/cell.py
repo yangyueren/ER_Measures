@@ -1,4 +1,6 @@
 import os
+import math
+import random
 import numpy as np
 import pandas as pd
 import h5py
@@ -8,13 +10,13 @@ import time
 from tqdm import tqdm
 from multiprocessing import Process, Lock
 import sys
-sys.path.append(".")
+# sys.path.append(".")
 import os
 from pathlib import Path
 import logging
 from codes.evaluate import evaluate
-sys.path.append('./codes/split_cell/')
-from point import Point
+# sys.path.append('./codes/split_cell/')
+from .point import Point
 
 # geo_range = {'lat_min': 40.953673, 'lat_max': 41.307945, 'lon_min': -8.735152, 'lon_max': -8.156309}
 
@@ -160,14 +162,14 @@ class Cell:
         ans = list()
         # import pdb; pdb.set_trace()
         # res = sorted(self.point2freq.items(), key=lambda x: np.log(x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-        res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]])*len(self.point2traj[x[0]]) + 1)), reverse=True)
+        res = sorted(self.point2freq.items(), key=lambda x: math.sqrt(x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]])*len(self.point2traj[x[0]]) + 1)), reverse=True)
         i = 0
         j = 0
         while i<k and j < len(res):
             tmp = res[j]
             j += 1
-            if not is_neighbor(ans, tmp):
+            if not is_neighbor(ans, tmp) or random.random() < 0.3:
                 ans.append(tmp)
                 i += 1
         

@@ -13,16 +13,17 @@ import sys
 import os
 from pathlib import Path
 import logging
-from codes.evaluate import evaluate
+from codes.evaluate_no_duplicate import evaluate
 from .point import Point
 from .cell import Cell
+from .config import setting
 
 # geo_range = {'lat_min': 40.953673, 'lat_max': 41.307945, 'lon_min': -8.735152, 'lon_max': -8.156309}
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.DEBUG)
 
 # FileHandler
-file_handler = logging.FileHandler('./log/debug_topk_3w4_sqrt(x1)_no_duplicate_split_cell_output.log')
+file_handler = logging.FileHandler('./log/split_cell.log')
 file_handler.setLevel(level=logging.DEBUG)
 # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 formatter = logging.Formatter('%(asctime)s - %(message)s')
@@ -42,27 +43,31 @@ def one_process(cell_num, k, lock):
         [type]: [description]
     """
     root_path = Path(os.getcwd())
-    trajectory_path = root_path / 'data' / 'porto2top100_train.h5'
-    embedding_path = root_path / 'data' / 'trj_porto2_top100_train180.h5'
-    ft = h5py.File(trajectory_path, 'r')
+    test_pair_path = setting['pair_path'] + 'test.csv'
+    test_pair = pd.read_csv(test_pair_path, usecols=[0, 1, 2])
+    test_idx = list(set(test_pair['ltable_id']).union(set(test_pair['rtable_id'])))
+    trajectory_path = setting['raw_data_path']
+    with open(trajectory_path, 'rb') as f:
+        df = pkl.load(f)
+        if 'TIMESTAMPS' not in df.columns:
+            df.rename(columns={'TIMESTAMP':'TIMESTAMPS'}, inplace=True)
+    # df = df.reindex(test_idx)
+    df.index = list(range(len(df)))
 
-    cell = Cell(ft['trips'], cell_num)
+    geo_range = setting['geo_range']
+    cell = Cell(cell_num, geo_range)
     print(f'begin add trip {cell_num}, {k}')
     t1 = time.time()
-    cell.add_trip(ft['trips'], ft['taxi_ids'])
+    cell.add_trip(df)
 
-    # topk : (dict): driver: list([Point, frequency]), list has only k numbers
+    # topk : (list): list([Point, frequency]), list has only k numbers
     topk = cell.top_k(k=k)
-    labels = cell.labels
-    point2traj = cell.point2traj
-
-    # neighbor_ratio = cell.neighbor_ratio(topk)
-    # print(neighbor_ratio)
-
+    # import pdb; pdb.set_trace()
     # groups: list(list), every element is an trajectory id.
     # labels[id] represents the driver of trajectory id.
     labels, groups = cell.create_groups(topk)
     k = len(groups)
+    # import pdb; pdb.set_trace()
     
     
     pc, pq, rr, DB, B = evaluate(labels, groups)
@@ -75,7 +80,7 @@ def one_process(cell_num, k, lock):
         print(e)
     finally:
         lock.release()
-        ft.close()
+        
 
 
 if __name__ == '__main__':
@@ -86,10 +91,10 @@ if __name__ == '__main__':
     
     lock = Lock()
     p_obj = []
-    # one_process(50,5, lock)
-    for i in range(1, 5): #num cell
-        for j in range(1, 10): # top-k
-            p = Process(target=one_process, args=(i*6, j*5, lock))
+    # one_process(16,7, lock)
+    for i in range(3, 5): #num cell
+        for j in range(1, 5): # top-k
+            p = Process(target=one_process, args=(i*2, j*3, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -99,10 +104,9 @@ if __name__ == '__main__':
         i.join()
 
     p_obj = []
-    # one_process(50,50, lock)
-    for i in range(1, 5): #num cell
-        for j in range(10, 20): # top-k
-            p = Process(target=one_process, args=(i*6, j*5, lock))
+    for i in range(3, 5): #num cell
+        for j in range(3, 5): # top-k
+            p = Process(target=one_process, args=(i*5, j*8, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -112,9 +116,8 @@ if __name__ == '__main__':
         i.join()
 
     p_obj = []
-    # one_process(50,50, lock)
-    for i in range(5, 10): #num cell
-        for j in range(1, 10): # top-k
+    for i in range(5, 8): #num cell
+        for j in range(1, 3): # top-k
             p = Process(target=one_process, args=(i*2, j*10, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
@@ -126,9 +129,9 @@ if __name__ == '__main__':
 
     p_obj = []
     # one_process(50,50, lock)
-    for i in range(1, 10): #num cell
-        for j in range(5, 10): # top-k
-            p = Process(target=one_process, args=(i*3, j*10*i, lock))
+    for i in range(5, 8): #num cell
+        for j in range(5, 7): # top-k
+            p = Process(target=one_process, args=(i*3, j*10, lock))
             p_obj.append(p)
         print('Waiting for all subprocesses done...')
 
@@ -140,28 +143,3 @@ if __name__ == '__main__':
 
     print('All subprocesses done.')
     
-
-
-
-
-
-
-# def non_repeated_ratio(frequency):
-#     """analyze the non repeated ratio of top k cells for each driver
-
-#     Args:
-#         frequency (dict): driver: list, list is [(Point, fre)]
-#     Return:
-#         ratio (dict): non repeated ratio for each driver
-#     """
-#     ratio = dict()
-#     for key in frequency:
-#         gt_set = set([i[0] for i in frequency[key]])
-#         junk_set = set()
-#         for jk in frequency:
-#             if jk != key:
-#                 cur_set = set([i[0] for i in frequency[jk]])
-#                 junk_set |= cur_set
-#         cur_ratio = len(gt_set.intersection(junk_set)) / len(gt_set)
-#         ratio[key] = cur_ratio
-#     return ratio

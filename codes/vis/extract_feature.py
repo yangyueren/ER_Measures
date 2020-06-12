@@ -59,7 +59,7 @@ class DrivingState:
         # import pdb; pdb.set_trace()
         for key in count:
             v[key] = count[key]
-        if np.sum(v) != 0:
+        if np.sum(v) != 0.0:
             norm_v = (v - np.min(v)) / (np.max(v) - 0)
         else:
             norm_v = v
@@ -73,10 +73,11 @@ class DrivingState:
         """
         self.transition_graph = self.get_graph()
         graph_vec = self.transition_graph.reshape(-1)
-        if np.sum(graph_vec) != 0:
+        if np.sum(graph_vec) != 0.0:
             normed_graph_vec = (graph_vec - np.min(graph_vec)) / (np.max(graph_vec) - 0)
         else:
             normed_graph_vec = graph_vec
+        
         return normed_graph_vec
 
 

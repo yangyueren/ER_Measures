@@ -21,13 +21,13 @@ from .point import Point
 # geo_range = {'lat_min': 40.953673, 'lat_max': 41.307945, 'lon_min': -8.735152, 'lon_max': -8.156309}
 
 class Cell:
-    def __init__(self, trips, cell_num=1000):
-        """return the minx, miny, maxx, maxy
+    def __init__(self, cell_num, geo_range):
+        """init the cell object
+
         Args:
-            trips (dataset of h5py): 
+            cell_num (int): the num of per side
+            geo_range (dict): the geo range of the city
         """
-        # self.min_x # longitude
-        # self.min_y # latitude
 
         # in the format of driver: Point(1,2) : num
         # self.driver[taxi][point] = frequency
@@ -36,35 +36,17 @@ class Cell:
         self.point2freq = dict()
         # self.point2traj[point].add(idxx)
         self.point2traj = dict()
-        
+
+        # self.point2stop_point[point] = freq
+        self.point2stop_point_freq = dict()
 
         # self.labels[id] is the trajectoyr id 's driver.
         self.labels = list()
         self.cell_num_per_side = cell_num
-        self.min_x, self.min_y, self.max_x, self.max_y = -8.735152, 40.953673, -8.156309, 41.307945
-        # self.min_x, self.min_y, self.max_x, self.max_y = self._area(trips)
+        self.min_x, self.min_y, self.max_x, self.max_y = \
+            geo_range['lon_min'], geo_range['lat_min'], geo_range['lon_max'], geo_range['lat_max']
+
         self.gap_x, self.gap_y = self._cell_gap(self.cell_num_per_side)
-
-
-    def _area(self, trips):
-        """return the minx, miny, maxx, maxy
-
-        Args:
-            trips (dataset of h5py): 
-        """
-        minx = 10000
-        miny = 10000
-        maxx = -10000
-        maxy = -10000
-        for key in trips.keys():
-            trip = trips[key][()]
-            # print(key)
-            minx = min(minx, trip[:,1].min())
-            maxx = max(maxx, trip[:,1].max())
-            miny = min(miny, trip[:,0].min())
-            maxy = max(maxy, trip[:,0].max())
-
-        return minx, miny, maxx, maxy
 
     def _cell_gap(self, nums):
         """find the gap for the target nums
@@ -76,7 +58,7 @@ class Cell:
         gap_y = (self.max_y - self.min_y) / nums
         return gap_x, gap_y
 
-    def add_trip(self, trips, taxi_ids):
+    def add_trip(self, df):
         """add trip to the driver
 
         Args:
@@ -87,24 +69,18 @@ class Cell:
         skip = 1
         total = 1
         self.labels = list()
-        # trj_num = len(trips.keys())
-        trj_num = 30000
-        # for idx in tqdm(range(len(trips.keys()) )):
-        for idxx in range(trj_num):
-            idx = idxx * 12
-            total += 1
-            # idx is id of trajectory, its driver is in taix_ids[str(idx)]
-            trip = trips[str(idx)][()]
-            taxi = int(taxi_ids[str(idx)][()])
-            # record the driver id for the trajectory idx
+        for idx, traj in tqdm(df.iterrows()):
+            trip, taxi = np.array(traj['POLYLINE']), int(traj['LABEL'])
+#             s_point = np.array(traj['s_point']) # [[1.37142289, 103.87005064]]
+            s_point = np.array([])
             self.labels.append(taxi)
-
             if sum(trip[:, 0] < self.min_x) > 0 or sum(trip[:, 0] > self.max_x) > 0:
                 skip += 1
                 continue
             if sum(trip[:, 1] < self.min_y) > 0 or sum(trip[:, 1] > self.max_y) > 0:
                 skip += 1
                 continue
+            
             
             x = np.floor((trip[:, 0] - self.min_x) / self.gap_x)
             x = x.astype(np.int)
@@ -128,10 +104,25 @@ class Cell:
                 # record the visited number of the point for taxi_id.
                 self.driver[taxi][point] += 1
                 # record the point which trajectory visit.
-                self.point2traj[point].add(idxx)
+                self.point2traj[point].add(idx)
                 # record the point visiting frequency.
                 self.point2freq[point] += 1
-        # assert len(self.labels) == len(trips.keys())
+        
+            # import pdb; pdb.set_trace()
+            if len(s_point) > 0:
+                x_sp = np.floor((s_point[:, 1] - self.min_x) / self.gap_x)
+                x_sp = x_sp.astype(np.int)
+                y_sp = np.floor((s_point[:, 0] - self.min_y) / self.gap_y)
+                y_sp = y_sp.astype(np.int)
+                assert len(x_sp) == len(y_sp)
+                for i in range(len(x)):
+                    point = Point(x[i], y[i])
+                    if point not in self.point2stop_point_freq:
+                        self.point2stop_point_freq[point] = 0
+                    # record the stop point visiting frequency.
+                    self.point2stop_point_freq[point] += 1
+
+        print(f'skip={skip}')
         
     def __str__(self):
         f = f'minx, miny, maxx, maxy, gapx, gapy {self.min_x}, {self.min_y}, {self.max_x}, {self.max_y}, {self.gap_x}, {self.gap_y}'
@@ -142,12 +133,12 @@ class Cell:
 
 
     def top_k(self, k=20):
-        """find the top k of each driver
+        """find the top k of all points
 
         Args:
             k (int): knn
         Returns:
-            ans (dict): driver: list((Point, frequency))
+            ans (list): list((Point, frequency))
         """
         def is_neighbor(topk, now):
             for ii in range(len(topk)):
@@ -161,9 +152,10 @@ class Cell:
 
         ans = list()
         # import pdb; pdb.set_trace()
-        # res = sorted(self.point2freq.items(), key=lambda x: np.log(x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
         res = sorted(self.point2freq.items(), key=lambda x: math.sqrt(x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-        # res = sorted(self.point2freq.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]])*len(self.point2traj[x[0]]) + 1)), reverse=True)
+#         res = sorted(self.point2freq.items(), key=lambda x: (x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+#         res = sorted(self.point2stop_point_freq.items(), key=lambda x: (x[1])* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
+        
         i = 0
         j = 0
         while i<k and j < len(res):
@@ -172,7 +164,6 @@ class Cell:
             if not is_neighbor(ans, tmp) or random.random() < 0.3:
                 ans.append(tmp)
                 i += 1
-        
         return ans
     
 
@@ -186,20 +177,6 @@ class Cell:
             labels: list()
             groups: list(list)
         """
-        # def is_neighbor(topk):
-        #     new_topk = set()
-        #     for i in range(len(topk)):
-        #         flag = True
-        #         for pair in new_topk:
-        #             point1 = topk[i][0]
-        #             point2 = pair[0]
-        #             if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
-        #                 flag = False
-        #                 break
-        #         if flag:
-        #             new_topk.add(topk[i])
-        #     return new_topk
-
         labels = self.labels
         groups = list()
         visited = set()
@@ -209,112 +186,8 @@ class Cell:
             if point not in visited:
                 visited.add(point)
                 tmp = list(self.point2traj[point])
-            if len(tmp) > 2:
-                groups.append(tmp)
+                if len(tmp) > 2:
+                    groups.append(tmp)
         # import pdb; pdb.set_trace()
         # print(groups)
         return labels, groups
-
-
-    # def top_k(self, k=20):
-    #     """find the top k of each driver
-
-    #     Args:
-    #         k (int): knn
-    #     Returns:
-    #         ans (dict): driver: list((Point, frequency))
-    #     """
-    #     ans = dict()
-    #     # drivers (dict): drivers[0][Point(1,2)] = frequency
-    #     drivers = self.driver
-    #     for key in drivers.keys():
-    #         if key not in ans:
-    #             ans[key] = list()
-    #         pairs = drivers[key] # pairs is dict: Point:frequency
-    #         # res = sorted(pairs.items(), key=lambda x: x[1]* 1.0 / self.point2freq[x[0]], reverse=True)
-    #         res = sorted(pairs.items(), key=lambda x: x[1]* (1.0 / (len(self.point2traj[x[0]]) + 1)), reverse=True)
-
-    #         ans[key] = res[:k]
-    #     return ans
-    
-
-    # def neighbor_ratio(self, topk):
-    #     """calculate the neighbor ratio for each driver
-
-    #     Args:
-    #         topk (dict): driver: list([Point, frequency])
-        
-    #     Returns:
-    #         neighbor_ratio (list): len(driver)+1, the 1st is overall ratio.
-    #     """
-    #     def is_neighbor(point1, point2):
-    #         if abs(point1.x - point2.x) <= 1 and abs(point1.y - point2.y) <=1:
-    #             return True
-    #         else:
-    #             return False
-
-    #     ratio_list = list()
-    #     for driver in topk.keys():
-    #         buckets = topk[driver]
-    #         neighbor = set()
-    #         for i in range(len(buckets)-1):
-    #             for j in range(i+1, len(buckets)):
-    #                 if is_neighbor(buckets[i][0], buckets[j][0]):
-    #                     neighbor.add(buckets[i][0])
-    #                     neighbor.add(buckets[j][0])
-    #         cur_ratio = len(neighbor) / len(buckets)
-    #         ratio_list.append(cur_ratio)
-    #     average_ratio = sum(ratio_list) / len(ratio_list)
-    #     ratio_list.insert(0, average_ratio)
-    #     return ratio_list
-                        
-
-
-
-    # def create_groups(self, topk):
-    #     """create groups in the format [[1,2,3], [3,4,5]], list(list)
-
-    #     Args:
-    #         topk (dict): driver: list([Point, frequency])
-
-    #     Returns:
-    #         labels: list()
-    #         groups: list(list)
-    #     """
-    #     labels = self.labels
-    #     groups = list()
-    #     visited = set()
-    #     for driver in topk.keys():
-    #         points = topk[driver]
-    #         # import pdb; pdb.set_trace()
-    #         cur_group = list()
-    #         for pair in points:
-    #             if pair[0] not in visited:
-    #                 visited.add(pair[0])
-    #                 tmp = list(self.point2traj[pair[0]])
-    #                 cur_group.extend(tmp)
-    #         groups.append(list(set(cur_group)))
-    #     # import pdb; pdb.set_trace()
-    #     return labels, groups
-
-
-
-    # def non_repeated_ratio(self, frequency):
-    #     """analyze the non repeated ratio of top k cells for each driver
-
-    #     Args:
-    #         frequency (dict): driver: list, list is [(Point, fre)]
-    #     Return:
-    #         ratio (dict): non repeated ratio for each driver
-    #     """
-    #     ratio = dict()
-    #     for key in frequency:
-    #         gt_set = set([i[0] for i in frequency[key]])
-    #         junk_set = set()
-    #         for jk in frequency:
-    #             if jk != key:
-    #                 cur_set = set([i[0] for i in frequency[jk]])
-    #                 junk_set |= cur_set
-    #         cur_ratio = len(gt_set.intersection(junk_set)) / len(gt_set)
-    #         ratio[key] = cur_ratio
-    #     return ratio

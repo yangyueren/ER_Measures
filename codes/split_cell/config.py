@@ -7,6 +7,7 @@ setting = {
     'pair_path' : '/data3/zhuzheng/trajectory/mcan/singapore/1.0h/',
     # 'raw_data_path' : '/data3/zhuzheng/trajectory/singapore/singapore_1.0h.pkl',
 #     'raw_data_path': '/data3/zhuzheng/trajectory/singapore/singapore_1.0h_withsp.pkl'
-    'raw_data_path': '/data3/zhuzheng/trajectory/singapore/singapore_1d_withsp.pkl'
+    'raw_data_path': '/data3/zhuzheng/trajectory/singapore/singapore_1d_withsp.pkl',
+    'raw_data_path_process': '/home/yangyueren/dataset/trajectory/singapore/singapore_1d_withsp.pkl'
     
 }

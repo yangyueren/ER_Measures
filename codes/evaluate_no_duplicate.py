@@ -50,10 +50,7 @@ def cal_DB_2(labels, group, db):
         for j in range(i):
             if labels[i] == labels[j]:
                 assert j < i, 'pair error'
-                a = group[i]
-                b = group[j]
-                m = min(a,b)
-                n = max(a,b)
+                m, n = min(group[i], group[j]), max(group[i], group[j])
                 assert m < n, 'pair error'
                 if m not in db:
                     db[m] = set()
@@ -74,7 +71,8 @@ def pc(labels, groups, DB):
     for k,v in elem_fre.items():
         tmp = v * (v-1) / 2
         DE += tmp
-        
+    if DE == 0:
+        DE = 1
     return DB / DE
 
 
@@ -92,12 +90,9 @@ def pq(labels, groups, DB):
         for i in range(len(group)):
             for j in range(i):
                 assert j < i, 'pair error'
-                a = group[i]
-                b = group[j]
-                m = min(a,b)
-                n = max(a,b)
+                m, n = min(group[i], group[j]), max(group[i], group[j])
                 assert m < n, 'pair error'
-                if m not in b:
+                if m not in b_dict:
                     b_dict[m] = set()
                 b_dict[m].add(n)
     B = 0
